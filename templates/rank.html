@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8"/>
+        <title>Document</title>
+    </head>
+    <body>
+	<a href="/">Back</a>
+	<form method="post">
+	    {{form.Eval.label}}
+	    {{form.Eval()}}
+	    {{form.submit}}
+	</form>
+
+	<div>
+	    <h3>Rankings</h3>
+	    <div>
+		<ol>
+		    {% for rank in rankings %}
+		    <li>{{ rank.name }}</li>
+		    {% endfor %}
+		</ol>
+		
+	    </div>
+	</div>
+    </body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8"/>
+        <title>Document</title>
+    </head>
+    <body>
+	<h3>Create New Tag</h3>
+	<a href="/">Back</a>
+	<form method="post">
+	    {{form.tag_name.label }}
+	    {{form.tag_name() }}
+	    {{form.parent.label }}
+	    {{form.parent() }}
+	    {{form.essential.label }}
+	    {{ form.essential() }}
+	    {{ form.submit }}
+	</form>
+
+	<div>
+	    <h3>tags</h3>
+	    <div>
+		<ol>
+		    {% for tag in tags %}
+		    <li>{{ tag.name }}</li>
+		    {% endfor %}
+		</ol>
+		
+	    </div>
+	</div>
+    </body>
+</html>
