@@ -11,15 +11,22 @@ def next_id(list_var):
     
 def updated_tag_rank(tags):
     for idx in tags:
-        print(idx, tag_list[idx].name)
-        tag = tag_list[idx]
+        print(idx, get_tag_by_id(idx).name)
+        tag = get_tag_by_id(idx)
         tag.rank = tag.rank + 1
 
 def updated_related_tag_rank(obj_tags):
     for itm in obj_tags:
         itm.rank = itm.rank + 1
 
+
+def get_tag_by_id(_id):
+    for tt in tag_list:
+        if tt.id == _id:
+            return tt
+        
 def create_related_tag(taga, tagb):
+    # for speed and consistancy tag1, tag2 is ordered by ID
     if taga == tagb:
         return
     tag1 = taga if taga.id < tagb.id else tagb
@@ -46,86 +53,110 @@ class Eval():
         self.result = result
 
     def overall_rank(self):
-        exact = self.find_evals_from_tags()
+        # TODO this needs to be a recursive function
+        exact = self.find_full_eval_matches()
         # normally, get the next most unique. But we will cut the first one off.
         # because we already got exact matches
-        most_unique = 100
-        print(self.tags)
-        for t in self.tags:
-            print(t,tag_list[t-1].rank,tag_list[t-1].name)
-            if tag_list[t-1].rank < most_unique and tag_list[t-1].essential:
-                most_unique = t
-        next_tags = [ta for ta in self.tags if ta != most_unique]
+        next_tags = self.cut_most_unique_tag(self.tags)
         next_matches = self.find_evals_from_tags(next_tags)
-        print(next_matches)
-        return exact + next_matches
+        # After this try to chop next unique, if the next one is Essential. Then try to chop any that are not essential.
+        # IF ALL of them are essential, then branch outwards by most related (from the most unique essential tag)
+        round_three_tags = self.cut_most_unique_tag(next_tags)
+        if round_three_tags == next_matches:
+            # all essential so find closest related
+            next_related = self.find_next_related()
+            if next_related == None:
+                # nothing new, return what we have
+                return exact + next_matches
+            else:
+                round_three_tags = round_three_tags.append(next_related.id)
+                round_three_matches = self.find_evals_from_tags(round_three_tags)
+                return exact + next_matches + round_three_matches
+        else:
+            #drill down more, we cut off another tag with round 3. now find matches
+            round_three_matches = self.find_evals_from_tags(round_three_tags)
+        return exact + next_matches + round_three_matches
+                
         
-            
         
-    def find_evals_from_tags(self, tags_to_match=None):
-        # THIS ONE IS FOR FULL MATCH
-        # a function for finding all matching evals with given tag_list
-        #default = self.tags
-        if tags_to_match == None:
-            tags_to_match = self.tags
+    def find_full_eval_matches(self):
+        # a function for finding all matching evals with from self.tags (FULL MATCH)
         res = []
         for e in eval_list:
             full_match = True
             if self.id == e.id:
                 continue
-            for i in range(len(tags_to_match)):
-                if tags_to_match[i-1] != e.tags[i-1]:
+            for i in range(len(self.tags)):
+                if self.tags[i-1] != e.tags[i-1]:
                     full_match = False
                     break
             if full_match:
                 res.append(e)
         return res
 
-    # def find_evals_from_tags(self, tags_to_match=None):
-    #     # a function for finding all matching evals with given tag_list
-    #     #default = self.tags
-    #     if tags_to_match == None:
-    #         tags_to_match = self.tags
-    #     res = []
-    #     for e in eval_list:
-    #         full_match = True
-    #         if self.id == e.id:
-    #             continue
-    #         for i in range(len(tags_to_match)):
-    #             if tags_to_match[i-1] != e.tags[i-1]:
-    #                 full_match = False
-    #                 break
-    #         if full_match:
-    #             res.append(e)
-    #     return res
+    
+    def find_evals_from_tags(self, tags_to_match=None):
+        # a function for finding all matching evals with given tag_list
+        res = []
+        for e in eval_list:
+            full_match = True
+            if self.id == e.id:
+                continue
+            e.tags.sort()
+            for et in e.tags:
+                if et not in tags_to_match:
+                    print("broke here", et)
+                    full_match = False
+                    break
+            if full_match:
+                res.append(e)
+        return res
 
-    def find_next_unique(tags, current_tag):
-        """
-        # first find the most unique
-        max_unique = 100
+    
+    def find_next_unique(self, tags, current_tag):
+        # first find the most unique  note: tags is a list of Tag objects
+        max_unique = 10000
         tag = None
         for t in tags:
-            if t.id ==current_tag.id:
+            if t.id == current_tag.id:
                 continue
-            if t.rank > max_unique:
+            if t.rank < max_unique:
                 tag = t
                 max_unique = t.rank
         return tag
-        """        
-        pass
 
-    def find_next_related(current_tag):
-        """
-        # find the next related tag from a given tag
+
+    def cut_most_unique_tag(self, tagid_list):
+        # return a tagid_list that cuts off the most unique tag.
+        # if ALL are essential, then return the same list
+        most_unique = 100000
+        most_unique_tag = 0
+        updated = False
+        for t in tagid_list:
+            t_tag = get_tag_by_id(t)
+            if t_tag.rank < most_unique and t_tag.essential == False:
+                most_unique_tag = t
+                most_unique = t_tag.rank
+                updated = True
+        if updated == False:
+            return tagid_list
+        return [tid for tid in tagid_list if tid != most_unique_tag]
+    
+    def find_next_related(self, current_tag):
+        # find the next related tag from a given tag NOTE current_tag is Tag Object
         max_relation = 0
         new_tag = None
         for rt in related_list:
-            if current_tag.id in [t.id for t in rt.tags] && rt.rank > max_relation:
-                max_reltion = rt.rank
+            # this has to also offer something new? so one id needs to be in the current tag BUT
+            # the other id cannot be in the Eval Tag list
+            id_matches = [tid for tid in rt.related_tags if tid in self.tags]
+            print(len(id_matches))
+            if len(id_matches) == 2:
+                continue
+            if current_tag.id in [t.id for t in rt.related_tags] and rt.rank > max_relation:
+                max_relation = rt.rank
                 new_tag = rt
         return new_tag
-        """        
-        pass
     
     
         
